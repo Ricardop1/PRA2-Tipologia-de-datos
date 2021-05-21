@@ -1,5 +1,6 @@
 library(dplyr)
 library(caret)
+library(nortest)
 
 # 2. Integraci?n y selecci?n de los datos de inter?s a analizar
 
@@ -116,3 +117,39 @@ titanic_raw[c(259, 680, 738), ] # Hemos hecho una pequeña vuelta a este dataset
 
 
 # 4. Análisis de los datos
+## 4.1. Selección de los grupos de datos que se quieren analizar/comparar
+titanic.primeraClase <- titanic[titanic$Pclass == 1,]
+titanic.segundaClase <- titanic[titanic$Pclass == 3,]
+titanic.terceraClase <- titanic[titanic$Pclass == 3,]
+
+titanic.mujeres <- titanic[titanic$Sex == "female",]
+titanic.hombres <- titanic[titanic$Sex == "male",]
+
+titanic.supervivientes <- titanic[titanic$Survived == 1,]
+titanic.fallecidos <- titanic[titanic$Survived == 0,]
+
+
+## 4.2. Comprobación de la normalidad y la homogeneidad de la varianza
+
+
+lapply(titanic[,c("Age", "SibSp", "Parch", "Fare")], ad.test)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
