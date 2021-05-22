@@ -221,8 +221,8 @@ Resulta que aquellos que pagaron de media 80 libras y estaban en primera clase e
 
 ```{r}
 titanic$Embarked[embarked.na] <- "C"
-levels(titanic$Embarked) <- factor(titanic$Embarked)
 ```
+
 
 
 ## Identificación y tratamiento de valores extremos
@@ -276,7 +276,7 @@ Todos conocemos la mítica frase “mujeres y niños primero” gracias a la pel
 
 ```{r}
 titanic.primeraClase <- titanic[titanic$Pclass == 1,]
-titanic.segundaClase <- titanic[titanic$Pclass == 3,]
+titanic.segundaClase <- titanic[titanic$Pclass == 2,]
 titanic.terceraClase <- titanic[titanic$Pclass == 3,]
 
 titanic.mujeres <- titanic[titanic$Sex == "female",]
@@ -286,13 +286,81 @@ titanic.supervivientes <- titanic[titanic$Survived == 1,]
 titanic.fallecidos <- titanic[titanic$Survived == 0,]
 ```
 
+
+
 ## Comprobación de la normalidad y homogeneidad de la varianza.
 
 Vamos a comprobar la normalidad utilizando el test de shapiro-wilk. Este test consiste en un contraste de hipótesis en el que la hipótesis nula es la distribución normal de los datos. 
 
 ```{r}
-lapply(titanic[,c("Age", "SibSp", "Parch", "Fare")], ad.test)
+lapply(titanic[,c("Age", "SibSp", "Parch", "Fare")], shapiro.test)
+```
+
+Dado que en nuestro caso los valores p resultantes del análisis para todos los conjuntos numéricos es menor que 0.05, tenemos que rechazar la hipótesis nula y por tanto no se puede confirmar la normalidad de los datos.
+
+
+El siguiente paso consistirá en el estudio de la homogeneidad de varianzas usando el test de Fligner-Killeen. En este caso, estudiaremos las diferencias en la varianza en los grupos de edad de los pasajeros que han fallecido y aquellos que lograron sobrevivir.
+
+```{r}
+fligner.test(Age ~ Survived, data = titanic)
+```
+
+Al obtener un valor p menor que el valor de significancia 0,05, rechazamos la hipotesis nula homocedasticidad y concluímos que la variable Edad presenta varianzas estadisticamente diferentes en los pasajeron que fallecieron y aquellos que han logrado sobrevivir
+
+```{r}
+boxplot(titanic.supervivientes[,"Age"])
+boxplot(titanic.fallecidos[,"Age"])
+```
+
+## Aplicación de pruebas estadísticas para comparar los grupos de datos
+
+### Estudio de variables significativas
+
+En primer lugar, estudiaremos las variables más significaivas a la hora de las posibilidades de supervivencia de los pasajeros. Para ello, usaremos un modelo de regresión logística que estime la probabilidad de superivencia frente a todas las variables disponibles.
+
+```{r}
+modelo.Surv <- glm(Survived ~ Pclass + Sex + SibSp + Parch + Fare + Age +  Embarked, data = titanic, family = "binomial"(link=logit))
+summary(modelo.Surv)
+```
+
+Vemos que obtenemos como significativas las variables Pclass, el sexo, la edad y Sibsp. Podemos ver como a medida que la clase en la que viajaba el pasajero era "peor", menos posibilidades tenia de sobrevivir. Por otro lado, también vemos como se reducian las posibilidades de sobrevivir en caso de que el pasajero fuera hombre. Como podiamos esperar, los pasajeros más jovenes también tenían más posibilidades de sobrevivir. 
+El resultado que puede resultar en sorpresa es la variable SibSp, a mayor número de hermanos y/o conyugue el pasajero tenía menos posibilidades de sobrevivir.
+
+
+### ¿La proporción de pasajeros fallecidos de Clase 3 es realmente mayor que la proprción de pasajeros fallecidos de clase 1?
+
+
+Las hipotesis nula y alternativa son:
+          \begin{center}H0: $p\textsubscript{c3} = p\textsubscript{c1}$\end{center}  
+          \begin{center}H1: $p\textsubscript{c3} > p\textsubscript{c1} $ \end{center}
+
+Siendo $p\textsubscript{c3}$ la proporción de pasajeros de clase 3 que no han sobrevivido y $p\textsubscript{c1}$ la proporción de pasajeros de clase 1 que no han sobrevivido.
+
+```{r}
+(numPrimera <- length(titanic.primeraClase$Survived))
+(numTercera <- length(titanic.terceraClase$Survived))
+```
+
+Para este caso, debid al teorema del limite central y que las dos muestras tienen un número alto de registros, se asumirá la normalidad de la distribución.
+
+```{r}
+(p1 <- sum(titanic.terceraClase$Survived == 0) / numTercera)
+(p2 <- sum(titanic.primeraClase$Survived == 0) / numPrimera)
+
+
+
+#Comprobación
+success <- c(p1*numTercera,p2*numPrimera)
+n <- c(numTercera,numPrimera)
+prop.test( success, n, alternative="greater", correct=FALSE)
+
 ```
 
 
-Dado que en nuestro caso los valores p resultantes del análisis para todos los conjuntos numéricos es menor que 0.05, tenemos que rechazar la hipótesis nula y por tanto no se puede confirmar la normalidad de los datos.
+
+
+
+
+
+
+
