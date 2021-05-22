@@ -323,14 +323,45 @@ modelo.Surv <- glm(Survived ~ Pclass + Sex + SibSp + Parch + Fare + Age +  Embar
 summary(modelo.Surv)
 ```
 
-Vemos que obtenemos como significativas las variables Pclass, el sexo, la edad y Sibsp. Podemos ver como a medida que la clase en la que viajaba el pasajero era "peor", menos posibilidades tenia de sobrevivir. Por otro lado, también vemos como se reducian las posibilidades de sobrevivir en caso de que el pasajero fuera hombre. Como podiamos esperar, los pasajeros más jovenes también tenían más posibilidades de sobrevivir. 
+Vemos que obtenemos como significativas las variables Pclass, el sexo, la edad y Sibsp. Podemos ver como a medida que la clase en la que viajaba el pasajero era "peor", menos posibilidades tenia de sobrevivir. Por otro lado, también vemos como se reducían las posibilidades de sobrevivir en caso de que el pasajero fuera hombre. Como podíamos esperar, los pasajeros más jovenes también tenían más posibilidades de sobrevivir. 
 El resultado que puede resultar en sorpresa es la variable SibSp, a mayor número de hermanos y/o conyugue el pasajero tenía menos posibilidades de sobrevivir.
 
+Como curiosidad, procederemos a comprobar la influencia del sexo y edad en la posibilidad de supervivencia, donde calcularemos la probabilidad de que sobrevivan 4 pasajeros: 2 hombres de edades  15 y 50, y 2 mujeres de la misma edad.
 
-### ¿La proporción de pasajeros fallecidos de Clase 3 es realmente mayor que la proprción de pasajeros fallecidos de clase 1?
+```{r}
+test <- data.frame( Pclass= c("1","1","1","1"),
+                    Sex = c("female","male","female","male"),
+                    SibSp = c(3,3,3,3),
+                    Parch = c(1,1,1,1),
+                    Fare = c(200,200,200,200),
+                    Age = c(15,15,50,50),
+                    Embarked = c("C","C","C","C")
+                    )
+
+predict(modelo.Surv, test, type = "response")
+```
+Se puede observar la gran influencia que tanto la edad como el sexo tienen sobre la posibilidad de sobrevivir.
 
 
-Las hipotesis nula y alternativa son:
+### Estudio de la relación de Survived con Age, Sex y Pclass
+
+Para terminar el estudio de la relaciones entre variables, utilizaremos el test de chi-cuadrado para comprobar si la relación entre la variable Survived es estadísticamente significativa entre el sexo, clase y edad de los pasajeros.
+
+```{r, warning=FALSE,message=FALSE}
+tabla.SurvPclass <- table(titanic$Survived,titanic$Pclass)
+tabla.SurvSex <- table(titanic$Survived,titanic$Sex)
+
+chisq.test(tabla.SurvPclass)
+chisq.test(tabla.SurvSex)
+chisq.test(x =titanic$Survived,y = titanic$Age )
+```
+
+Puesto que obtenemos en todos los tests un valor p menor que el valor de signifiación (0,05), podemos rechazar la hipótesis nula y admitimos que dichas variables son estadisticamente significativas con la variable Survived.
+
+
+### ¿La proporción de pasajeros fallecidos de Clase 3 es realmente mayor que la proporción de pasajeros fallecidos de clase 1?
+
+Como última prueba estadística, se aplicará un contraste de hipótesis sobre la proporción de dos muestras para determinar si efectivamente, la porporción de pasajeros fallecidos viajando en clase 3 es mayor la proporción de pasajeros fallecidos de clase 1. Con esto las hipótesis nula y alternativa son:
           \begin{center}H0: $p\textsubscript{c3} = p\textsubscript{c1}$\end{center}  
           \begin{center}H1: $p\textsubscript{c3} > p\textsubscript{c1} $ \end{center}
 
@@ -341,7 +372,7 @@ Siendo $p\textsubscript{c3}$ la proporción de pasajeros de clase 3 que no han s
 (numTercera <- length(titanic.terceraClase$Survived))
 ```
 
-Para este caso, debid al teorema del limite central y que las dos muestras tienen un número alto de registros, se asumirá la normalidad de la distribución.
+Para este caso, debido al teorema del limite central y que las dos muestras tienen un número alto de registros, se asumirá la normalidad de la distribución.
 
 ```{r}
 (p1 <- sum(titanic.terceraClase$Survived == 0) / numTercera)
@@ -356,10 +387,18 @@ prop.test( success, n, alternative="greater", correct=FALSE)
 
 ```
 
+Obtenemos un valor p menor que el nivel de significación (0,05) por lo que rechazamos la hipótesis nula y admitimos la hipótesis alternativa diciendo que efectivamente, la proporción de pasajeros fallecidos de Clase 3 es  mayor que la proporción de pasajeros fallecidos de clase 1
 
 
+# Representación de los resultados a partir de tablas y gráficas
+
+```{r}
+interaction.plot(titanic$Survived,titanic$Sex,titanic$Age,
+                 xlab = "Survived", ylab = "Edad")
+```
 
 
+# Conclusiones
 
 
 
