@@ -29,6 +29,7 @@ library(dplyr)
 library(caret)
 library(nortest)
 library(ranger)
+library(rpart.plot)
 ```
 
 
@@ -198,9 +199,8 @@ summary(titanic$Age[-age.na])
 ```
 
 
-
-
 En el caso de “Embarked” vamos a proceder de forma parecida al primer punto. Por lógica el valor de la puerta de entrada va a estar fuertemente influenciado por el precio del ticket y la clase del pasajero, así que vamos a ver a través de que puerta embarcaron aquellos con una situación similar a los registros 62 y 830 (aquellos faltantes).
+
 ```{r}
 embarked.na <- which(titanic$Embarked == "")
 titanic$Embarked[embarked.na] <- NA
@@ -281,6 +281,7 @@ titanic.terceraClase <- titanic[titanic$Pclass == 3,]
 
 titanic.mujeres <- titanic[titanic$Sex == "female",]
 titanic.hombres <- titanic[titanic$Sex == "male",]
+
 
 titanic.supervivientes <- titanic[titanic$Survived == 1,]
 titanic.fallecidos <- titanic[titanic$Survived == 0,]
@@ -392,14 +393,47 @@ Obtenemos un valor p menor que el nivel de significación (0,05) por lo que rech
 
 # Representación de los resultados a partir de tablas y gráficas
 
+
+Obseravamos la interacción existente entre los factores Sex, Survived y la edad. 
 ```{r}
 interaction.plot(titanic$Survived,titanic$Sex,titanic$Age,
                  xlab = "Survived", ylab = "Edad")
 ```
 
+A través del gráfico podemos ver como la edad media de las mujeres que fallecieron es mucho menor que la edad media de los hombres que fallecieron. No obstante, es curioso ver que la edad media de aquellos hombres que lograron sobrevivir es menor que la edad media de aquellas mujeres que también sobrevivieron.  
+
+
+Otra forma de ver que variables separan mejorar nuestros datos para poder clsificar si han sobrevivido o no, utilizaremos un arbol de decisión con el paquete rpart.
+
+```{r}
+
+supervivencia <- rpart(Survived~.,data=titanic,method="class",
+                        minsplit=1,cp=.02,parms = list(split ="gini"))
+
+rpart.plot(supervivencia,type = 3,extra = 100 ,clip.right.lab = FALSE)
+```
+
+Una vez más, concluímos que las variables más significativas a la hora de detectar si el pasajero ha sobrevivido o no son el sexo, la edad y la clase en la que el pasajero viajaba.
+
 
 # Conclusiones
+```{r}
+str(titanic)
+```
 
 
+```{r}
+titanic_raw$Survived <- titanic$Survived
+titanic_raw$Pclass   <- titanic$Pclass  
+titanic_raw$Sex      <- titanic$Sex     
+titanic_raw$Age      <- titanic$Age     
+titanic_raw$SibSp    <- titanic$SibSp   
+titanic_raw$Parch    <- titanic$Parch   
+titanic_raw$Fare     <- titanic$Fare    
+titanic_raw$Embarked <- titanic$Embarked
+
+write.csv(titanic_raw,"./csv/Titanic_clean.csv",
+          row.names=FALSE, fileEncoding = 'UTF-8')
+```
 
 
