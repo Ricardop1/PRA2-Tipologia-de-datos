@@ -5,19 +5,19 @@ date: "Mayo 2021"
 fontsize: 11pt
 geometry: margin=1in
 output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+  word_document:
+    toc: yes
+    toc_depth: '3'
   pdf_document:
     number_section: yes
     toc: yes
     toc_depth: 3
     fig_width: 6
     fig_height: 5
-  word_document:
-    toc: yes
-    toc_depth: '3'
-  html_document:
-    number_sections: yes
-    toc: yes
-    toc_depth: 2
 lang: es
 ---
 
@@ -35,9 +35,10 @@ library(rpart.plot)
 
 ## Introducción
 
-Para el desarrollo de esta práctica se ha optado por la elección del dataset: "Titanic: Machine Learning from Disaster" que se encuentra en el link: "https://www.kaggle.com/c/titanic". Este dataset contiene información relacionada con uno de los naufragios más conocidos de la historia, donde se tienen datos relativos a sus pasajeros, como edad, sexo, clase en que viajaban y, finalmente, si han consiguieron sobrevivir o no. Es un dataset cuyo uso es muy extendido para el entrenamiento de algoritmos supervisados o para árboles de decisión donde la variable objetivo es precisamente si lograron sobrevivir o no en función de las características propias del viajero.
-Descripción de Columnas
+Para el desarrollo de esta práctica se ha optado por la elección del dataset: "Titanic: Machine Learning from Disaster" que se encuentra en el link: "https://www.kaggle.com/c/titanic". Este dataset contiene información relacionada con uno de los naufragios más conocidos de la historia, donde se tienen datos relativos a sus pasajeros, como edad, sexo, clase en que viajaban y, finalmente, si consiguieron sobrevivir o no. Es un dataset cuyo uso es muy extendido para el entrenamiento de algoritmos supervisados o para árboles de decisión donde la variable objetivo es precisamente su supervivencia en función de las características propias del viajero.
 
+
+Descripción de Columnas
 
 Dicho conjunto de datos con 891 instancias no se puede considerar de un gran tamaño, sin embargo sí que está constituido por 12 columnas que hacen que la descripción de cada uno de los individuos sea razonablemente completa:
 
@@ -84,7 +85,7 @@ summary(titanic_raw)
 El siguiente paso, consistirá en eliminar aquellas columnas que no contengan información útil para el desarrollo de esta práctica. Entre estas columnas tenemos:
 •	Ticket: ya que no contiene información que pueda diferenciar los pasajeros;
 •	PassangerId: al ser simplemente un identificador del pasajero en nuestro conjunto de datos;
-•	Cabin: ya que consiste en una variable con un gran número de valores incompletos.
+•	Cabin: ya que consiste en una variable con un gran número de valores incompletos que tampoco aporta gran información.
 •	Name
   
 ```{r}
@@ -135,7 +136,7 @@ titanic.ceros <- lapply(titanic[,c("Fare", "Age")], where.ceros)
 titanic.ceros
 ```
 
-Comenzando por los ceros, podemos ver gracias a la función creada “where.ceros”, que no hay ninguna edad con dicho valor, en cambio sí que vemos que muchos tickets han sido gratuitos y trataremos con ellos en el siguiente epígrafe.
+Comenzando por los ceros, podemos ver gracias a la función creada “where.ceros”, que no hay ninguna edad con dicho valor, en cambio sí que vemos que muchos tickets han sido "gratuitos" y trataremos con ellos en el siguiente epígrafe.
 
 ```{r}
 ### NA
@@ -148,11 +149,12 @@ titanic.na
 ```
 
 En cuanto a los valores NA, vemos que estos sólo se encuentran en la variable Age y además son extremadamente habituales, suponiendo 177 de los 891 registros de los que disponemos, algo que sin duda afectará a la decisión que decidamos tomar en el siguiente epígrafe.
+
 Tan sólo nos queda por hablar de la variable “Embarked”, que como mencionábamos presenta un nivel vacío en el que imputaremos NAs que posteriormente habrá que tratar.
 
 
 ### ¿Cómo gestionar los casos?
-Comenzando por los ceros, nos gustaría saber cómo se distribuyen los registros según la clase antes de tomar una decisión, así que antes de tomar una decisión vamos a observar dicha condición.
+Comenzando por los ceros, nos gustaría saber cómo se distribuyen los registros según la clase antes de tomar una decisión, así que vamos a observar dicha condición.
 
 ```{r}
 age.ceros <- unlist(titanic.ceros[1])
@@ -161,7 +163,7 @@ ceros.class <- titanic$Pclass[age.ceros]
 table(ceros.class)
 ```
 
-Habíamos valorado la posibilidad de que el billete gratis fuera algún tipo de beneficio de alguna de las clases y que estuviéramos eliminando esta información, pero dado que se distribuyen casi homogéneamente por clase (5, 6 y 4), no parece que el valor pueda ser tomado por cierto. Dado que el precio de un ticket es algo que está fuertemente marcado por la clase, procedemos a imputar el precio medio condicionado a la clase en cada uno de esos ceros.
+Habíamos valorado la posibilidad de que el billete gratis fuera algún tipo de beneficio de alguna de las clases y que estuviéramos eliminando esta información, pero dado que se distribuyen casi homogéneamente por clase, no parece que el valor pueda ser tomado por cierto. Dado que el precio de un ticket es algo que está fuertemente marcado por la clase, procedemos a imputar el precio medio condicionado a la clase en cada uno de esos ceros.
 
 ```{r}
 fareMean.byClass <- by(titanic$Fare, titanic$Pclass, mean)
@@ -217,10 +219,11 @@ median(titanic.Q$Fare, na.rm = TRUE)
 median(titanic.S$Fare, na.rm = TRUE)
 ```
 
-Resulta que aquellos que pagaron de media 80 libras y estaban en primera clase entraron por la puerta C de forma clara, así que vamos a imputar este valor para nuestros registros faltantes y a recalcular los niveles del factor para eliminar el “”.
+Resulta que aquellos que pagaron alrededor de 80 libras y estaban en primera clase entraron por la puerta C de forma clara, así que vamos a imputar este valor para nuestros registros faltantes y a recalcular los niveles del factor para eliminar el factor “”.
 
 ```{r}
 titanic$Embarked[embarked.na] <- "C"
+levels(titanic$Embarked) <- factor(titanic$Embarked)
 ```
 
 
@@ -231,19 +234,6 @@ De nuevo vamos a comenzar por plantearnos qué dimensiones pueden presentar valo
 
 Antes de proceder a una imputación debemos comprobar cualitativamente si efectivamente estos valores se pueden considerar outliers, para lo que procedemos a observar los diagramas de caja correspondientes a estas dimensiones obteniendo, además, el número de outliers en cada variable.
 ```{r}
-detect.outliers <- function(x){
-  iqr <- quantile(x)
-  lower.iqr <- iqr[2]
-  upper.iqr <- iqr[4]
-  x.iqr <- upper.iqr - lower.iqr
-  
-  upper.threshold <- (x.iqr*1.5) + upper.iqr
-  lower.threshold <- lower.iqr - (x.iqr*1.5)
-  
-  values <- x < lower.threshold | x > upper.threshold
-  return(values)
-}
-
 out.Age <- boxplot(titanic[,"Age"])$out
 out.SibSp <- boxplot(titanic[,"SibSp"])$out
 out.Parch <- boxplot(titanic[,"Parch"])$out
@@ -258,21 +248,23 @@ length(out.Fare)
 
 Vemos que efectivamente el dataset presenta un gran número de outliers.
 
-Además, se podría decir que todos los valores extremos quizá a excepción de uno tienen sentido. Tenemos que alguien ha pagado más de 500 libras por una habitación cuando el segundo valor más grande era de menos de 300. 
+En cualquier caso no parecen outliers que haya que tratar, se podría decir que todos los valores extremos quizá a excepción de uno tienen sentido. Nos extraña que alguien ha pagado más de 500 libras por una habitación cuando el segundo valor más grande era de menos de 300. 
 
 ```{r}
-which(titanic$Fare > 500)
-titanic_raw[c(259, 680, 738), ]
+billetes.caros <- which(titanic$Fare > 500)
+titanic_raw$Name[billetes.caros]
 ```
 
-Viendo esta circunstancia y la más que segura existencia de información online, hemos hecho una pequeña investigación sobre dicha habitación y resulta que su valor es correcto dado que era una suite triple en la que Thomas Cardeza convivió con su madre y varios sirvientes . Debido a estas observaciones, no parece que vaya a ser necesario tratar los outliers.
+Viendo esta circunstancia y la más que segura existencia de información online, hemos hecho una pequeña investigación sobre dicha habitación y resulta que su valor es correcto dado que era una suite triple en la que Thomas Cardeza convivió con su madre y varios sirvientes. También hemos podido comprobar que en este dataset faltan instancias, en concreto la de la madre de Thomas Cardeza quien también viajaba a bordo y cuya sirvienta era Miss Anna Ward, la cual sí que está registrada en este dataset. 
+
+Debido a estas observaciones, no parece que vaya a ser necesario tratar los outliers.
 
 
 # Análisis de los datos
 
 ## Selección de los grupos de datos que se quieren analizar o comparar
 
-Todos conocemos la mítica frase “mujeres y niños primero” gracias a la película homónima, lo que no se decía tan claro en la película es que los ricos también iban primero. Está claro que uno de las selecciones tiene que ser una división de supervivientes y fallecidos, la segunda tiene que ser por sexo y la tercera será por clase. Podríamos categorizar la edad para separar también por grupos, pero corremos el riesgo de perder mucha información al establecer franjas de edad así que no lo vamos a hacer.
+Todos conocemos la mítica frase “mujeres y niños primero” gracias a la película homónima, lo que no se decía tan claro en la película es que los ricos también iban primero. Está claro que una de las selecciones tiene que ser una división de supervivientes y fallecidos, la segunda tiene que ser por sexo y la tercera será por clase. Podríamos categorizar la edad para separar también por grupos, pero correríamos el riesgo de perder mucha información al establecer franjas de edad así que no lo vamos a hacer.
 
 ```{r}
 titanic.primeraClase <- titanic[titanic$Pclass == 1,]
@@ -306,12 +298,14 @@ El siguiente paso consistirá en el estudio de la homogeneidad de varianzas usan
 fligner.test(Age ~ Survived, data = titanic)
 ```
 
-Al obtener un valor p menor que el valor de significancia 0,05, rechazamos la hipotesis nula homocedasticidad y concluímos que la variable Edad presenta varianzas estadisticamente diferentes en los pasajeron que fallecieron y aquellos que han logrado sobrevivir
+Al obtener un valor p menor que el valor de significancia 0,05, rechazamos la hipotesis nula que presuponía homocedasticidad y concluímos que la variable Edad presenta varianzas estadisticamente diferentes en los pasajeron que fallecieron y aquellos que han logrado sobrevivir
 
 ```{r}
 boxplot(titanic.supervivientes[,"Age"])
 boxplot(titanic.fallecidos[,"Age"])
 ```
+
+Como decíamos, hubo un orden de evacuación claro definido según atributos de nuestro dataset, luego no estos resultados no nos extrañan. Veremos cuáles eran estos atributos en el siguiente apartado.
 
 ## Aplicación de pruebas estadísticas para comparar los grupos de datos
 
@@ -324,10 +318,20 @@ modelo.Surv <- glm(Survived ~ Pclass + Sex + SibSp + Parch + Fare + Age +  Embar
 summary(modelo.Surv)
 ```
 
-Vemos que obtenemos como significativas las variables Pclass, el sexo, la edad y Sibsp. Podemos ver como a medida que la clase en la que viajaba el pasajero era "peor", menos posibilidades tenia de sobrevivir. Por otro lado, también vemos como se reducían las posibilidades de sobrevivir en caso de que el pasajero fuera hombre. Como podíamos esperar, los pasajeros más jovenes también tenían más posibilidades de sobrevivir. 
-El resultado que puede resultar en sorpresa es la variable SibSp, a mayor número de hermanos y/o conyugue el pasajero tenía menos posibilidades de sobrevivir.
+Comenzando por los resultados esperables, se observa que el hecho de ser de clase 1 o clase 3 influía fuertemente en tus posibilidades de supervivencia y que lo siguiente que más afectaba eran el sexo y la edad. De hecho, según los resultados, el hecho de ser mujer respecto a ser hombre influía casi lo mismo que la pertenencia a primera clase (obviamente la comparación no es exacta y cada individuo posee una combinación de características). Esto viene a confirmar lo mencionado anteriormente: Mujeres y niños (y ricos) primero.
 
-Como curiosidad, procederemos a comprobar la influencia del sexo y edad en la posibilidad de supervivencia, donde calcularemos la probabilidad de que sobrevivan 4 pasajeros: 2 hombres de edades  15 y 50, y 2 mujeres de la misma edad.
+Lo que nos ha sorprendido un poco por la precisión que muestra es la comparación entre el resultado de Parch y SibSp. El tamaño de la familia no resulta relevante en cuanto si un pasajero se salvaba o no ¡en cambio sí que lo supone el número de hermanos! Parece una medida incongruente, pero posiblemente no está hablando de que las familias grandes no tienen por qué ser jóvenes (recordemos el caso de Thomas Cardoza viajando con su madre), en cambio tener muchos hermanos sí que nos puede hablar de edades tempranas y por tanto de mayores posibilidades de salvación.
+
+Vamos a comprobar si efectivamente a mayor número de hermanos menor era el rango de edad.
+
+```{r}
+plot(titanic$SibSp, titanic$Age,
+     xlab="Número de hermanos",
+     ylab="Edad")
+```
+
+
+Como curiosidad también nos gustaría comprobar la influencia del sexo y edad en la posibilidad de supervivencia, donde calcularemos la probabilidad de que sobrevivan 4 pasajeros: 2 hombres de edades  15 y 50, y 2 mujeres de la misma edad. Los vamos a introducir a todos en primera clase dado que esto nos permitirá aumentar las posibilidades de salvación de todos ellos y observar mejor las diferencias entre estos grupos.
 
 ```{r}
 test <- data.frame( Pclass= c("1","1","1","1"),
@@ -341,7 +345,8 @@ test <- data.frame( Pclass= c("1","1","1","1"),
 
 predict(modelo.Surv, test, type = "response")
 ```
-Se puede observar la gran influencia que tanto la edad como el sexo tienen sobre la posibilidad de sobrevivir.
+
+Se puede observar la gran influencia que tanto la edad como el sexo tienen sobre la posibilidad de sobrevivir, pero el rango en el que esto varía dentro de la primera clase es impresionante.
 
 
 ### Estudio de la relación de Survived con Age, Sex y Pclass
@@ -349,12 +354,12 @@ Se puede observar la gran influencia que tanto la edad como el sexo tienen sobre
 Para terminar el estudio de la relaciones entre variables, utilizaremos el test de chi-cuadrado para comprobar si la relación entre la variable Survived es estadísticamente significativa entre el sexo, clase y edad de los pasajeros.
 
 ```{r, warning=FALSE,message=FALSE}
-tabla.SurvPclass <- table(titanic$Survived,titanic$Pclass)
-tabla.SurvSex <- table(titanic$Survived,titanic$Sex)
+tabla.SurvPclass <- table(titanic$Survived, titanic$Pclass)
+tabla.SurvSex <- table(titanic$Survived, titanic$Sex)
 
 chisq.test(tabla.SurvPclass)
 chisq.test(tabla.SurvSex)
-chisq.test(x =titanic$Survived,y = titanic$Age )
+chisq.test(x =titanic$Survived, y = titanic$Age )
 ```
 
 Puesto que obtenemos en todos los tests un valor p menor que el valor de signifiación (0,05), podemos rechazar la hipótesis nula y admitimos que dichas variables son estadisticamente significativas con la variable Survived.
@@ -362,7 +367,7 @@ Puesto que obtenemos en todos los tests un valor p menor que el valor de signifi
 
 ### ¿La proporción de pasajeros fallecidos de Clase 3 es realmente mayor que la proporción de pasajeros fallecidos de clase 1?
 
-Como última prueba estadística, se aplicará un contraste de hipótesis sobre la proporción de dos muestras para determinar si efectivamente, la porporción de pasajeros fallecidos viajando en clase 3 es mayor la proporción de pasajeros fallecidos de clase 1. Con esto las hipótesis nula y alternativa son:
+Como última prueba estadística, se aplicará un contraste de hipótesis sobre la proporción de dos muestras para determinar si efectivamente, la proporción de pasajeros fallecidos viajando en clase 3 es mayor la proporción de pasajeros fallecidos de clase 1. Con esto las hipótesis nula y alternativa son:
           \begin{center}H0: $p\textsubscript{c3} = p\textsubscript{c1}$\end{center}  
           \begin{center}H1: $p\textsubscript{c3} > p\textsubscript{c1} $ \end{center}
 
@@ -391,32 +396,53 @@ prop.test( success, n, alternative="greater", correct=FALSE)
 Obtenemos un valor p menor que el nivel de significación (0,05) por lo que rechazamos la hipótesis nula y admitimos la hipótesis alternativa diciendo que efectivamente, la proporción de pasajeros fallecidos de Clase 3 es  mayor que la proporción de pasajeros fallecidos de clase 1
 
 
-# Representación de los resultados a partir de tablas y gráficas
+# Representación de los resultados a partir de tablas, gráficas y conclusiones finales.
 
+En general nos hemos encontrado con un conjunto razonablemente limpio pero cuyos pocos problemas de limpieza eran complejos. La toma de decisiones respecto a imputar o no imputar un valor, respecto a qué considerar outlier o respecto a las estrategias de limpieza, pueden llegar a ser muy complejas y a necesitar de un conocimiento cualitativo del campo de aplicación muy alto.
 
-Obseravamos la interacción existente entre los factores Sex, Survived y la edad. 
+Estamos bastante contentos con los resultados, hemos tratado problemas muy diversos y utilizado distintas técnicas de imputación. En el proceso también hemos ido extrayendo pequeñas conclusiones. Por ejemplo hemos podido encontrar dos tipologías de viaje en grupo: familia joven con muchos hermanos y familias mayores. A este respecto podemos complementar la gráfica anterior en la que observábamos que a mayor número de hermanos más pequeñas eran las edades de los individuos, con otra en la que veremos cómo eso no sucede con la cantidad de miembros en la familia, de hecho en este caso parece incluso converger hacia los 40 años de edad.
+
+```{r}
+plot(titanic$Parch, titanic$Age,
+     xlab="Miembros en la familia",
+     ylab="Edad")
+```
+
+Esta ha sido la mayor sorpresa que nos hemos encontrado durante el análisis, de hecho nos habría encantado poder indagar aún más en la composición de las diferentes familias a bordo del titanic mediante el estudio de las relaciones de parentesco entre pasajeros, una dimensión que desgraciadamente no se encontraba presente en este dataset.
+
+Pero también hemos podido comprobar las conclusiones predecibles para este trabajo, estas son que la edad, el sexo y la clase social influyó altamente en las probabilidades de supervivencia. Podemos observar la interacción entre las dos primeras gracias al siguiente gráfico. 
 ```{r}
 interaction.plot(titanic$Survived,titanic$Sex,titanic$Age,
                  xlab = "Survived", ylab = "Edad")
 ```
 
-A través del gráfico podemos ver como la edad media de las mujeres que fallecieron es mucho menor que la edad media de los hombres que fallecieron. No obstante, es curioso ver que la edad media de aquellos hombres que lograron sobrevivir es menor que la edad media de aquellas mujeres que también sobrevivieron.  
+A través del gráfico podemos ver como la edad media de las mujeres que fallecieron es mucho menor que la edad media de los hombres que fallecieron. No obstante, es curioso observar que la edad media de aquellos hombres que lograron sobrevivir es menor que la edad media de aquellas mujeres que también sobrevivieron, probablemente reducida sobremanera dado que los hombres que se salvaron fueron en su mayoría niños.
 
-
-Otra forma de ver que variables separan mejorar nuestros datos para poder clsificar si han sobrevivido o no, utilizaremos un arbol de decisión con el paquete rpart.
+Por último, podemos observar de otra forma a las ya realizadas qué variables separan mejor nuestros datos para poder clasificar si han sobrevivido o no. Ya mencionábamos al comienzo del trabajo que este dataset era muy utilizado para generar árboles de clasificación, así que realizaremos el de rigor mediante el paquete rpart y procederemos a explicar las conclusiones que de él se derivan.
 
 ```{r}
-
 supervivencia <- rpart(Survived~.,data=titanic,method="class",
                         minsplit=1,cp=.02,parms = list(split ="gini"))
 
 rpart.plot(supervivencia,type = 3,extra = 100 ,clip.right.lab = FALSE)
 ```
 
-Una vez más, concluímos que las variables más significativas a la hora de detectar si el pasajero ha sobrevivido o no son el sexo, la edad y la clase en la que el pasajero viajaba.
+Los resultados son impresionantes. Confirma lo que ya sabíamos, pero nos aporta todavía más información en cómo se hacen los cortes significativos dentro de cada variable. Comenzando por el factor que más determina, con tan sólo dos nudos ya podemos certificar con un enorme 62% las probabilidades de morir de un pasajero. Pero no sólo eso, sino que el algoritmo ha sido capaz de decirnos qué significaba eso de niños en "mujeres y niños primero" y sitúa lo que es un niño en 6.4 años de edad, un valor tremendamente bajo.
+
+Ya sabíamos que las mujeres se salvaban si eran de primera clase en gran proporción, pero visto con esta fragmentación realmente no eran tantas la que conseguían huir. Incluyendo a la clase dos en la primera (el algoritmo funciona así, buscando cortes significativos), tan sólo sobrevivieron 1 de cada 5 según nuestro dataset.
+
+Otro resultado curioso es que dentro de la clase 3 y aunque tu billete fuera de los más baratos, las mujeres menores de 24 años también tuvieron ciertas posibilidades de salvarse, tan sólo un 9%, pero en comparación con los varones resulta una proporción razonablemente alta.
+
+Para el final hemos dejado la conclusión más chocante de todas: para los varones menores de 6.4 años se reducía la posibilidad de sobrevivir cuantos más hermanos tuvieras. Es un resultado realmente pasmante para el que difícilmente encontramos explicación. Podríamos pensar que a mayor número de hermanos probablemente más mayor sería el individuo en cuestión, pero es que en ese punto del análisis ya habíamos establecido que el individuo es menor de 6.4 años, luego lo único que se nos ocurre es una conclusión un poco extravagante y no comprobable, pero podría ser que la tripulación encargada de elegir quién entraba a los botes y quién no, sobreestimara la edad de un chico al verlo en compañía de otros menores que él. Sería muy interesante poder contar con un dataset más completo del que deducir qué hermanos de una familia sobrevivieron y cuáles no, una primera hipótesis nos indicaría que los hermanos mayores fallecieron con una probabilidad más alta independientemente de la edad.  
+
+Una vez más y de otra forma diferente, llegamos a la conclusión de que las variables más significativas a la hora de detectar si el pasajero ha sobrevivido o no son el sexo, la edad y la clase en la que el pasajero viajaba.
+
+No hemos dejado de discutir durante el proceso de escritura a qué se podría deber este orden de prioridad. Está claro que la clase podía influir de muchas formas diferentes: Estos pasajeros viajaban más cerca de la cubierta y tenían mejor acceso a los botes salvavidas, pero sin duda pudo tomar parte un factor inconsciente por parte de la tripulación que los considerara más "merecedores" de ser salvados, de hecho esta circunstancia en ningún momento fue explícita. Por otra parte resulta curioso qué definió la prelación "mujeres y niños primero", no compete a este trabajo determinar dicha decisión, pero hoy en día sería tremendamente cuestionable. No podemos olvidar que el titanic se hundió en 1912, y que las condiciones socio-políticas de la época difieren de las actuales sobremanera.
 
 
-# Conclusiones
+# Exportación del dataset
+
+
 ```{r}
 str(titanic)
 ```
