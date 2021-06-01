@@ -30,6 +30,11 @@ library(caret)
 library(nortest)
 library(ranger)
 library(rpart.plot)
+library(ggplot2)
+
+
+library(tidyr)
+library(stringr)
 ```
 
 
@@ -93,7 +98,7 @@ El siguiente paso, consistirá en eliminar aquellas columnas que no contengan in
 titanic <- subset(titanic_raw, select= -c(PassengerId, Name, Cabin, Ticket))
 ```
 
-  
+
 Ahora, convertiremos las variables categóricas de forma a facilitar el posterior análisis. Entre las variables que convertiremos a categóricas tenemos: Survived, Pclass, Sex y Embarked.Comprobaremos taién el número de niveles existentes.
 
 ```{r}
@@ -223,9 +228,8 @@ Resulta que aquellos que pagaron alrededor de 80 libras y estaban en primera cla
 
 ```{r}
 titanic$Embarked[embarked.na] <- "C"
-levels(titanic$Embarked) <- factor(titanic$Embarked)
+titanic <- droplevels(titanic)
 ```
-
 
 
 ## Identificación y tratamiento de valores extremos
@@ -258,6 +262,7 @@ titanic_raw$Name[billetes.caros]
 Viendo esta circunstancia y la más que segura existencia de información online, hemos hecho una pequeña investigación sobre dicha habitación y resulta que su valor es correcto dado que era una suite triple en la que Thomas Cardeza convivió con su madre y varios sirvientes. También hemos podido comprobar que en este dataset faltan instancias, en concreto la de la madre de Thomas Cardeza quien también viajaba a bordo y cuya sirvienta era Miss Anna Ward, la cual sí que está registrada en este dataset. 
 
 Debido a estas observaciones, no parece que vaya a ser necesario tratar los outliers.
+
 
 
 # Análisis de los datos
@@ -313,9 +318,19 @@ Como decíamos, hubo un orden de evacuación claro definido según atributos de 
 
 En primer lugar, estudiaremos las variables más significaivas a la hora de las posibilidades de supervivencia de los pasajeros. Para ello, usaremos un modelo de regresión logística que estime la probabilidad de superivencia frente a todas las variables disponibles.
 
-```{r}
-modelo.Surv <- glm(Survived ~ Pclass + Sex + SibSp + Parch + Fare + Age +  Embarked, data = titanic, family = "binomial"(link=logit))
+
+```{r, warning=FALSE,message=FALSE}
+set.seed(123) 
+train.control <- trainControl(method = "cv", number = 10)
+
+
+modelo.Surv <- train(Survived ~ Pclass + Sex + SibSp + Parch + Fare + Age + 
+                       Embarked, data = titanic, method = "glm", family="binomial",
+               trControl = train.control)
+
+print(modelo.Surv)
 summary(modelo.Surv)
+
 ```
 
 Comenzando por los resultados esperables, se observa que el hecho de ser de clase 1 o clase 3 influía fuertemente en tus posibilidades de supervivencia y que lo siguiente que más afectaba eran el sexo y la edad. De hecho, según los resultados, el hecho de ser mujer respecto a ser hombre influía casi lo mismo que la pertenencia a primera clase (obviamente la comparación no es exacta y cada individuo posee una combinación de características). Esto viene a confirmar lo mencionado anteriormente: Mujeres y niños (y ricos) primero.
@@ -333,7 +348,7 @@ plot(titanic$SibSp, titanic$Age,
 
 Como curiosidad también nos gustaría comprobar la influencia del sexo y edad en la posibilidad de supervivencia, donde calcularemos la probabilidad de que sobrevivan 4 pasajeros: 2 hombres de edades  15 y 50, y 2 mujeres de la misma edad. Los vamos a introducir a todos en primera clase dado que esto nos permitirá aumentar las posibilidades de salvación de todos ellos y observar mejor las diferencias entre estos grupos.
 
-```{r}
+```{r, warning=FALSE,message=FALSE}
 test <- data.frame( Pclass= c("1","1","1","1"),
                     Sex = c("female","male","female","male"),
                     SibSp = c(3,3,3,3),
@@ -343,7 +358,7 @@ test <- data.frame( Pclass= c("1","1","1","1"),
                     Embarked = c("C","C","C","C")
                     )
 
-predict(modelo.Surv, test, type = "response")
+predict(modelo.Surv, test, type = "prob")
 ```
 
 Se puede observar la gran influencia que tanto la edad como el sexo tienen sobre la posibilidad de sobrevivir, pero el rango en el que esto varía dentro de la primera clase es impresionante.
@@ -351,7 +366,7 @@ Se puede observar la gran influencia que tanto la edad como el sexo tienen sobre
 
 ### Estudio de la relación de Survived con Age, Sex y Pclass
 
-Para terminar el estudio de la relaciones entre variables, utilizaremos el test de chi-cuadrado para comprobar si la relación entre la variable Survived es estadísticamente significativa entre el sexo, clase y edad de los pasajeros.
+Para terminar el estudio de la relaciones entre variables, utilizaremos el test de chi-cuadrado para comprobar si la relación entre la variable Survived es estadísticamente significativa entre el sexo y clase. Por otro lado, se utilizará la prueba de Mann-Whitney para comprobar si la relación de la edad de los pasajeros con survived es significativa.
 
 ```{r, warning=FALSE,message=FALSE}
 tabla.SurvPclass <- table(titanic$Survived, titanic$Pclass)
@@ -359,7 +374,7 @@ tabla.SurvSex <- table(titanic$Survived, titanic$Sex)
 
 chisq.test(tabla.SurvPclass)
 chisq.test(tabla.SurvSex)
-chisq.test(x =titanic$Survived, y = titanic$Age )
+wilcox.test(titanic$Age~titanic$Survived)
 ```
 
 Puesto que obtenemos en todos los tests un valor p menor que el valor de signifiación (0,05), podemos rechazar la hipótesis nula y admitimos que dichas variables son estadisticamente significativas con la variable Survived.
@@ -398,6 +413,7 @@ Obtenemos un valor p menor que el nivel de significación (0,05) por lo que rech
 
 # Representación de los resultados a partir de tablas, gráficas y conclusiones finales.
 
+
 En general nos hemos encontrado con un conjunto razonablemente limpio pero cuyos pocos problemas de limpieza eran complejos. La toma de decisiones respecto a imputar o no imputar un valor, respecto a qué considerar outlier o respecto a las estrategias de limpieza, pueden llegar a ser muy complejas y a necesitar de un conocimiento cualitativo del campo de aplicación muy alto.
 
 Estamos bastante contentos con los resultados, hemos tratado problemas muy diversos y utilizado distintas técnicas de imputación. En el proceso también hemos ido extrayendo pequeñas conclusiones. Por ejemplo hemos podido encontrar dos tipologías de viaje en grupo: familia joven con muchos hermanos y familias mayores. A este respecto podemos complementar la gráfica anterior en la que observábamos que a mayor número de hermanos más pequeñas eran las edades de los individuos, con otra en la que veremos cómo eso no sucede con la cantidad de miembros en la familia, de hecho en este caso parece incluso converger hacia los 40 años de edad.
@@ -411,12 +427,64 @@ plot(titanic$Parch, titanic$Age,
 Esta ha sido la mayor sorpresa que nos hemos encontrado durante el análisis, de hecho nos habría encantado poder indagar aún más en la composición de las diferentes familias a bordo del titanic mediante el estudio de las relaciones de parentesco entre pasajeros, una dimensión que desgraciadamente no se encontraba presente en este dataset.
 
 Pero también hemos podido comprobar las conclusiones predecibles para este trabajo, estas son que la edad, el sexo y la clase social influyó altamente en las probabilidades de supervivencia. Podemos observar la interacción entre las dos primeras gracias al siguiente gráfico. 
+
 ```{r}
 interaction.plot(titanic$Survived,titanic$Sex,titanic$Age,
                  xlab = "Survived", ylab = "Edad")
 ```
 
 A través del gráfico podemos ver como la edad media de las mujeres que fallecieron es mucho menor que la edad media de los hombres que fallecieron. No obstante, es curioso observar que la edad media de aquellos hombres que lograron sobrevivir es menor que la edad media de aquellas mujeres que también sobrevivieron, probablemente reducida sobremanera dado que los hombres que se salvaron fueron en su mayoría niños.
+
+De forma a poder tener una iamgen visual sobre la proporción de mujeres y hombres que fallecieron o sobrevivieron hemos elaborado la siguiente gráfica:
+
+```{r}
+visualizacion_Genero <- titanic %>% 
+  group_by(Survived, Sex) %>% 
+  tally() %>% 
+  complete(Sex, fill = list(n = 0)) %>% 
+  mutate(percentage = n / sum(n) * 100)
+
+ggplot(visualizacion_Genero, aes(Sex, percentage, fill = Survived)) + 
+  geom_bar(stat = 'identity', position=position_dodge()) +
+  geom_text(aes(label=round(percentage, digits = 1)), vjust=1.6, color="black",
+            position = position_dodge(0.9), size=3.5) +
+  facet_wrap(~ Survived)+
+  theme_bw()
+```
+Donde podemos observar la gran diferencia que existe entre hombres y mujeres que finalmente fallecieron en el accidente, 85% de los pasajeros que murieron son del sexo masculinoy, por otro lado, 68% de los pasajeros que sobrevivieron son mujeres. Si ahora añadimos la variable Edad:
+
+
+```{r}
+ggplot(titanic, aes(x=Age, color=Sex)) +
+  geom_histogram(fill="white", alpha=0.5, position="identity", binwidth = 5)+
+facet_wrap(~ Survived)
+```
+Se puede apreciar el gran número de hombres fallecidos cuya edad rondaba los 30 años. Para terminar este punto, compararemos las diferencias de supervientes y fallecidos entre las clases en las que viajaban los pasajeros.
+
+```{r}
+visualizacion_Clase <- titanic %>% 
+  group_by(Survived, Pclass) %>% 
+  tally() %>% 
+  complete(Pclass, fill = list(n = 0)) %>% 
+  mutate(percentage = n / sum(n) * 100)
+
+ggplot(visualizacion_Clase, aes(Pclass, percentage, fill = Survived)) + 
+  geom_bar(stat = 'identity', position=position_dodge()) +
+  geom_text(aes(label=round(percentage, digits = 1)), vjust=1.6, color="black",
+            position = position_dodge(0.9), size=3.5) +
+  facet_wrap(~ Survived)+
+  theme_bw()
+```
+
+Es fácil ver que la clase en la que un pasajero se clasifica, prácticamente definia sus probabilidades bajas o altas de morir. Aún así, queremos comprobar si el precio por el que pagaban el billete en cada clase podría tener alguna influencia: 
+
+```{r}
+ggplot(titanic, aes(x=Fare, color=Survived)) +
+  geom_histogram(fill="white", alpha=0.5, position="identity")+
+  facet_wrap(~ Pclass)
+```
+
+Al igual que se ha obtenido en el modelo logístico creado, se puede ver como el precio que el pasajero pagaba por el ticket no es significativo sobre si finalmente fallecian o sobrevivian ya que además, se pude ver que en todas las clases el mayor número de billetes comprados se encuentran en el rango 0-100.
 
 Por último, podemos observar de otra forma a las ya realizadas qué variables separan mejor nuestros datos para poder clasificar si han sobrevivido o no. Ya mencionábamos al comienzo del trabajo que este dataset era muy utilizado para generar árboles de clasificación, así que realizaremos el de rigor mediante el paquete rpart y procederemos a explicar las conclusiones que de él se derivan.
 
