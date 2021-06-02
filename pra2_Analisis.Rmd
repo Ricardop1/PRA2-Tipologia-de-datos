@@ -31,10 +31,8 @@ library(nortest)
 library(ranger)
 library(rpart.plot)
 library(ggplot2)
-
-
 library(tidyr)
-library(stringr)
+library(VIM)
 ```
 
 
@@ -157,7 +155,6 @@ En cuanto a los valores NA, vemos que estos sólo se encuentran en la variable A
 
 Tan sólo nos queda por hablar de la variable “Embarked”, que como mencionábamos presenta un nivel vacío en el que imputaremos NAs que posteriormente habrá que tratar.
 
-
 ### ¿Cómo gestionar los casos?
 Comenzando por los ceros, nos gustaría saber cómo se distribuyen los registros según la clase antes de tomar una decisión, así que vamos a observar dicha condición.
 
@@ -212,7 +209,7 @@ En el caso de “Embarked” vamos a proceder de forma parecida al primer punto.
 embarked.na <- which(titanic$Embarked == "")
 titanic$Embarked[embarked.na] <- NA
 
-titanic[embarked.na, c("Pclass", "Fare")]
+titanic[embarked.na, c("Pclass", "Fare","Embarked")]
 
 #filtramos por clase y puerta de embarque
 titanic.C <- titanic[titanic$Embarked =="C" & titanic$Pclass =="1",]
@@ -224,11 +221,18 @@ median(titanic.Q$Fare, na.rm = TRUE)
 median(titanic.S$Fare, na.rm = TRUE)
 ```
 
-Resulta que aquellos que pagaron alrededor de 80 libras y estaban en primera clase entraron por la puerta C de forma clara, así que vamos a imputar este valor para nuestros registros faltantes y a recalcular los niveles del factor para eliminar el factor “”.
+Resulta que aquellos que pagaron alrededor de 80 libras y estaban en primera clase entraron por la puerta C de forma clara. Aún así, realizaremos una imputación de los valores usando el algoritmo kNN, presente en el paquete VIM, y obteniendo una respuesta más objetiva.
 
 ```{r}
-titanic$Embarked[embarked.na] <- "C"
+titanic <- kNN(titanic, variable = "Embarked")
+titanic[embarked.na, c("Pclass", "Fare","Embarked")]
+```
+
+Se puede observar como nuestro análisis era correcto y el algoritmo asignó la puerta C como puerta de embarque a los dos pasajeros. Procedemos a recalcular los niveles del factor para eliminar el factor “”.
+
+```{r}
 titanic <- droplevels(titanic)
+levels(titanic$Embarked)
 ```
 
 
@@ -509,7 +513,6 @@ No hemos dejado de discutir durante el proceso de escritura a qué se podría de
 
 
 # Exportación del dataset
-
 
 ```{r}
 str(titanic)
